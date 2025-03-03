@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Front</title>
+  <link rel="stylesheet" href="golf.com">
+  <style>
+    @font-face {
+      font-family: 'PixelFont';
+      src: url('pixel-font.ttf') format('truetype'); 
+    
+    }
+    body {
+      background-image: url('https://preview.redd.it/for-hire-i-make-pixel-art-backgrounds-twitch-overlays-and-v0-mnslf2y8hxab1.gif?width=1920&auto=webp&s=1a04a51f2f19a3ed0438df7225d41428170de17d');
+      background-size: cover;
+      background-position: center;
+      margin: 0;
+      text-align: center;
+      color: white;
+      font-family: 'PixelFont', sans-serif;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .title {
+      font-size: 4rem;
+      text-shadow: 4px 4px 0px black;
+      color: yellow;
+      transition: all 0.5s ease;
+    }
+    .title.top-left {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 2rem;
+      text-align: left;
+    }
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .game-button {
+      font-size: 2rem;
+      padding: 10px 20px;
+      margin: 10px;
+      background: yellow;
+      border: 4px solid black;
+      cursor: pointer;
+    }
+    .game-button:hover {
+      background: orange;
+    }
+    .hidden {
+      display: none;
+    }
+    .loading-text {
+      font-size: 2rem;
+      color: yellow;
+    }
+    .top-right-buttons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    .small-button {
+      font-size: 1rem;
+      padding: 5px 10px;
+      margin: 5px;
+      background: yellow;
+      border: 2px solid black;
+      cursor: pointer;
+    }
+    .small-button:hover {
+      background: orange;
+    }
+    .question-container {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 4rem;
+    }
+    .choices-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+      width: 90%;
+    }
+    .choice-button {
+      font-size: 3rem;
+      padding: 30px;
+      background: yellow;
+      border: 2px solid black;
+      cursor: pointer;
+      width: 100%;
+    }
+    .choice-button:hover {
+      background: orange;
+    }
+    .big-box {
+      width: 90%;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 4px solid yellow;
+      margin-top: 20px;
+    }
+    .question-box {
+      width: 95%;
+      padding: 30px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 4px solid yellow;
+      margin-top: 20px;
+      text-align: center;
+    }
+    .back-button {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      font-size: 1.5rem;
+      padding: 10px 20px;
+      background: yellow;
+      border: 2px solid black;
+      cursor: pointer;
+    }
+    .back-button:hover {
+      background: orange;
+    }
+    .split-screen {
+      display: flex;
+      width: 100%;
+      height: 100vh;
+    }
+    .question-side {
+      width: 50%;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      border-right: 4px solid yellow;
+      overflow-y: auto;
+    }
+    .game-side {
+      width: 50%;
+      height: 100vh;
+    }
+    .game-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .restore-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1rem;
+      padding: 5px 10px;
+      background: yellow;
+      border: 2px solid black;
+      cursor: pointer;
+      z-index: 1000;
+    }
+    .restore-button:hover {
+      background: orange;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="title" id="game-title">PhysXperience</h1>
+    <div id="menu" class="button-container">
+      <button class="game-button" onclick="startGame()">Start Game</button>
+      <button class="game-button" onclick="openSettings()">Settings</button>
+    </div>
+    <div id="loading" class="hidden">
+      <p class="loading-text">Game is Loading...</p>
+    </div>
+    <div id="game-buttons" class="hidden button-container"></div>
+    <div id="extra-buttons" class="hidden button-container"></div>
+    <div id="top-right-buttons" class="hidden top-right-buttons"></div>
+    <div id="game-links-buttons" class="hidden button-container"></div>
+    <button id="back-button" class="hidden back-button" onclick="goBack()">Back</button>
+  </div>
+
+  <script>
+    
+    let currentScreen = 'menu';
+    let lastQuestionIndex = 0;
+    const screenHistory = [];
+    let currentQuestionIndex = 0;
+    let currentQuestions = [];
+    let score = 0;
+    let soundOn = true;
+    let musicOn = true;
+    let backgroundMusic;
+
+    const easyQuestions = [
+      {
+        question: "A golf ball is in the field, located 0.34 km (340 m) from the hole. If the ball is hit at an angle of 45°, what should its velocity be to reach the hole?",
+        choices: ["63m/s", "64m/s", "66m/s", "65m/s"],
+        correct: "65m/s"
+      },
+      {
+        question: "A golfer hits a ball toward the hole at a constant velocity of 30 m/s having an angle of 80 degree If the hole is 10 meters away, how long will it take for the ball to reach the hole?",
+        choices: ["5s", "5.4s", "5.9s", "4.9s"],
+        correct: "5.9s"
+      },
+      {
+        question: "A tow truck with a mass of 800kg that pulls a broken car 300kg. Having a speed of  28m/s over a time period  of 10 seconds . How much work will be done by the towtruck?",
+        choices: [" 60,924.60", "59,429.60", "62,429.60", "60,429.60"],
+        correct: "60,429.60"
+      },
+      {
+        question: "For a projectile launched at the same angle, how does the initial velocity affect the distance it travels?",
+        choices: [" The higher the velocity, the shorter the distance it travels.", "The lower the velocity, the longer the distance it travels.", "The higher the velocity, the longer the distance it travels.", "The initial velocity has no effect on the distance traveled."],
+        correct: "The higher the velocity, the longer the distance it travels."
+      },
+      {
+        question: "If you double the time it takes to do a certain amount of work, what happens to the power?",
+        choices: ["It doubles.", "It is halved.", "It quadruples.", "It is quartered."],
+        correct: "It is halved."
+      },
+    ];
+
+    const normalQuestions = [
+      {
+        question: "The towtruck lifts a 400kg car with a 40m/s speed traveling for 15s . How much is the mass of the Tow truck to have a power of 14.911Kw (Kilowatt)?",
+        choices: ["1500kg", "1200kg", "1000kg", "1800kg"],
+        correct: "1500kg"
+      },
+      {
+        question: "A golfer hits a golf ball with an initial velocity of 30 m/s from  70m at an angle of 55° to the horizontal. Assume acceleration due to gravity is 9.8 m/s². What is the total Air time of the ball?",
+        choices: ["6s", "5s", "7s", "8s"],
+        correct: "5s"
+      },
+      {
+        question: "A tow truck pulls a car at a constant speed of 15 m/s on a level road. If the power output of the truck will be 6000 W,  what is the work done of the object in 5 seconds having the combined mass of 2039kg?",
+        choices: ["31,034J", "30,052J", "30,034J", "31,052J"],
+        correct: "30,052"
+      },
+    ];
+
+    const hardQuestions = [
+      {
+        question: "Golfer A's ball moves at 40m/s, while Golfer B's ball moves at 55 m/s. If both balls travel at a 30° angle from 1km (1000m), what is the difference of the distance does Golfer B's ball travel than Golfer A's ?",
+        choices: ["99.4m", "100m", "97.7m", "98.6m"],
+        correct: "99.4m"
+      },
+      {
+        question: " The Tow truck A. travels 30m/s at 10sec while the Tow truck B travels at the same rate but pulls a car with a 250kg. What is the difference in power used having a mass of the towtruck 1000kg?",
+        choices: ["1571.5 W", "1471.5 W", "1417.5 W", "1451.7 W"],
+        correct: "1471.5 W"
+      },
+    ];
+
+    function startBackgroundMusic() {
+      if (!backgroundMusic) {
+        backgroundMusic = new Audio('Music 1.mp3');
+        backgroundMusic.loop = true;
+      }
+      backgroundMusic.play();
+    }
+
+    function startGame() {
+      screenHistory.push(currentScreen);
+      currentScreen = 'loading';
+      document.getElementById('menu').classList.add('hidden');
+      document.getElementById('loading').classList.remove('hidden');
+      document.getElementById('back-button').classList.remove('hidden');
+      
+      startBackgroundMusic(); // Start playing background music
+
+      setTimeout(() => {
+        document.getElementById('loading').classList.add('hidden');
+        const gameButtonsContainer = document.getElementById('game-buttons');
+        gameButtonsContainer.classList.remove('hidden');
+        currentScreen = 'game-buttons';
+        
+        const buttonNames = getButtonNames();
+        
+        gameButtonsContainer.innerHTML = ''; // Clear existing buttons
+        for (let i = 0; i < buttonNames.length; i++) {
+          const button = document.createElement('button');
+          button.className = 'game-button';
+          button.textContent = buttonNames[i];
+          gameButtonsContainer.appendChild(button);
+          
+          if (buttonNames[i] === 'PhysTest') {
+            button.addEventListener('click', loadPhysTest);
+          } else if (buttonNames[i] === 'Golf Physics') {
+            button.addEventListener('click', () => {
+              loadGameLink('https://kaishin-prog.github.io/Golf-Physics/');
+            });
+          } else if (buttonNames[i] === 'Tow Truck Xperience') {
+            button.addEventListener('click', () => {
+              loadGameLink('https://kaishin-prog.github.io/Tow-Truck-X/');
+            });
+          }
+        }
+      }, 2000); // Simulate loading time
+    }
+    
+    function getButtonNames() {
+      // You can modify this array to set custom names for the buttons
+      return ['Golf Physics', 'Tow Truck Xperience', 'PhysTest'];
+    }
+    
+    function loadPhysTest() {
+      screenHistory.push(currentScreen);
+      currentScreen = 'loading';
+      document.getElementById('game-buttons').classList.add('hidden');
+      document.getElementById('loading').classList.remove('hidden');
+      document.getElementById('back-button').classList.add('hidden'); // Hide the back button
+      
+      setTimeout(() => {
+        document.getElementById('loading').classList.add('hidden');
+        const extraButtonsContainer = document.getElementById('extra-buttons');
+        extraButtonsContainer.classList.remove('hidden');
+        currentScreen = 'extra-buttons';
+        
+        const extraButtonNames = ['Easy', 'Normal', 'Hard'];
+        
+        extraButtonsContainer.innerHTML = ''; // Clear existing buttons
+        for (let i = 0; i < extraButtonNames.length; i++) {
+          const button = document.createElement('button');
+          button.className = 'game-button';
+          button.textContent = extraButtonNames[i];
+          extraButtonsContainer.appendChild(button);
+          button.addEventListener('click', () => {
+            if (extraButtonNames[i] === 'Easy' || extraButtonNames[i] === 'Normal' || extraButtonNames[i] === 'Hard') {
+              document.getElementById('back-button').classList.add('hidden');
+            }
+            if (extraButtonNames[i] === 'Easy') {
+              currentQuestions = easyQuestions;
+            } else if (extraButtonNames[i] === 'Normal') {
+              currentQuestions = normalQuestions;
+            } else if (extraButtonNames[i] === 'Hard') {
+              currentQuestions = hardQuestions;
+            }
+            score = 0; // Reset score
+            showQuestion(0);
+          });
+        }
+
+        // Add a back button to the difficulty selection screen
+        const backButton = document.createElement('button');
+        backButton.className = 'game-button';
+        backButton.textContent = 'Back';
+        backButton.addEventListener('click', () => {
+          goBackToGameButtons();
+          document.getElementById('game-title').classList.remove('top-left');
+          document.getElementById('top-right-buttons').classList.add('hidden');
+        });
+        extraButtonsContainer.appendChild(backButton);
+
+        // Move the title to the top left corner
+        document.getElementById('game-title').classList.add('top-left');
+
+        // Add small buttons to the top right corner
+        const topRightButtonsContainer = document.getElementById('top-right-buttons');
+        topRightButtonsContainer.classList.remove('hidden');
+        
+        const smallButtonNames = ['Golf Physics', 'Tow Truck Xperience'];
+        const smallButtonLinks = ['https://kaishin-prog.github.io/Golf-Physics/', 'https://kaishin-prog.github.io/Tow-Truck-X/'];
+        
+        topRightButtonsContainer.innerHTML = ''; // Clear existing buttons
+        for (let i = 0; i < smallButtonNames.length; i++) {
+          const button = document.createElement('button');
+          button.className = 'small-button';
+          button.textContent = smallButtonNames[i];
+          topRightButtonsContainer.appendChild(button);
+          button.addEventListener('click', () => {
+            handleSmallButtonClick(smallButtonLinks[i]);
+          });
+        }
+
+        // Change the background
+        document.body.style.backgroundImage = "url('https://cdn1.epicgames.com/ue/product/Screenshot/Screenshot07-1920x1080-0cb979cb04beb1d815c092e491a51ff1.jpg?resize=1&w=1920')";
+      }, 2000); // Simulate loading time
+    }
+
+    function loadGameLink(gameLink) {
+      screenHistory.push(currentScreen);
+      currentScreen = 'game-link';
+      document.getElementById('game-buttons').classList.add('hidden');
+      const gameLinksButtonsContainer = document.getElementById('game-links-buttons');
+      gameLinksButtonsContainer.classList.remove('hidden');
+      gameLinksButtonsContainer.innerHTML = `
+        <div class="loading-text">Loading Game...</div>
+      `;
+      setTimeout(() => {
+        gameLinksButtonsContainer.innerHTML = `
+          <iframe src="${gameLink}" class="game-frame" style="width: 100vw; height: 100vh; border: none; position: absolute; top: 0; left: 0;"></iframe>
+          <button class="small-button" onclick="goBackToGameButtons()" style="position: absolute; bottom: 10px; right: 10px;">Return</button>
+        `;
+      }, 2000); // 2 seconds delay before loading the game link
+    }
+
+    function showQuestion(index) {
+      if (index >= currentQuestions.length) {
+        finishTest();
+        return;
+      }
+      currentQuestionIndex = index;
+      lastQuestionIndex = index; // Store the current question index
+      screenHistory.push(currentScreen);
+      currentScreen = 'question';
+      const extraButtonsContainer = document.getElementById('extra-buttons');
+      const question = currentQuestions[index];
+      extraButtonsContainer.innerHTML = `
+        <div class="question-box">
+          <div class="question-container">
+            <p>${question.question}</p>
+          </div>
+        </div>
+        <div class="choices-container">
+          ${question.choices.map(choice => `<button class="choice-button" onclick="nextQuestion('${choice}')">${choice}</button>`).join('')}
+        </div>
+      `;
+      document.getElementById('back-button').classList.add('hidden'); // Hide the back button
+    }
+
+    function nextQuestion(selectedChoice) {
+      const currentQuestion = currentQuestions[currentQuestionIndex];
+      if (selectedChoice === currentQuestion.correct) {
+        score++;
+      }
+      showQuestion(currentQuestionIndex + 1);
+    }
+
+    function finishTest() {
+      screenHistory.push(currentScreen);
+      currentScreen = 'finish';
+      const extraButtonsContainer = document.getElementById('extra-buttons');
+      extraButtonsContainer.innerHTML = `
+        <div class="question-box">
+          <div class="question-container">
+            <p>Test finished! Your score is ${score} out of ${currentQuestions.length}.</p>
+          </div>
+        </div>
+        <button class="game-button" onclick="goBackToDifficulty()">Continue</button>
+      `;
+      document.getElementById('back-button').classList.add('hidden'); // Hide the back button
+    }
+
+    function goBackToDifficulty() {
+      screenHistory.push(currentScreen);
+      currentScreen = 'extra-buttons';
+      document.getElementById('extra-buttons').classList.remove('hidden');
+      document.getElementById('back-button').classList.add('hidden'); // Keep the back button hidden
+      loadPhysTest();
+    }
+
+    function goBackToGameButtons() {
+      screenHistory.push(currentScreen);
+      currentScreen = 'game-buttons';
+      document.getElementById('extra-buttons').classList.add('hidden');
+      document.getElementById('game-links-buttons').classList.add('hidden');
+      document.getElementById('game-buttons').classList.remove('hidden');
+      resetBackground();
+    }
+
+    function goBackToCurrentQuestions() {
+      screenHistory.push(currentScreen);
+      currentScreen = 'question';
+      document.getElementById('game-links-buttons').classList.add('hidden');
+      document.getElementById('extra-buttons').classList.remove('hidden');
+      document.getElementById('game-buttons').classList.remove('hidden');
+      showQuestion(currentQuestionIndex);
+    }
+
+    function goBack() {
+      if (screenHistory.length > 0) {
+        const previousScreen = screenHistory.pop();
+        switch (currentScreen) {
+          case 'loading':
+            document.getElementById('loading').classList.add('hidden');
+            break;
+          case 'game-buttons':
+            document.getElementById('game-buttons').classList.add('hidden');
+            break;
+          case 'extra-buttons':
+            document.getElementById('extra-buttons').classList.add('hidden');
+            break;
+          case 'settings':
+            document.getElementById('extra-buttons').classList.add('hidden');
+            break;
+          case 'question':
+            document.getElementById('extra-buttons').innerHTML = '';
+            document.getElementById('extra-buttons').classList.remove('hidden');
+            break;
+          case 'finish':
+            document.getElementById('extra-buttons').innerHTML = '';
+            break;
+          case 'game-link':
+            document.getElementById('game-links-buttons').classList.add('hidden');
+          case 'finishedtest':
+            document.getElementById('finishedtest').classList.add('hidden');
+            break;
+        }
+        currentScreen = previousScreen;
+        switch (currentScreen) {
+          case 'menu':
+            document.getElementById('menu').classList.remove('hidden');
+            document.getElementById('back-button').classList.add('hidden');
+            break;
+          case 'loading':
+            document.getElementById('loading').classList.remove('hidden');
+            break;
+          case 'game-buttons':
+            document.getElementById('game-buttons').classList.remove('hidden');
+            break;
+          case 'extra-buttons':
+            document.getElementById('extra-buttons').classList.remove('hidden');
+            break;
+          case 'question':
+            showQuestion(currentQuestionIndex);
+            break;
+          case 'finish':
+            goBackToDifficulty(); // Go back to difficulty selection after finishing the test
+            break;
+          case 'game-link':
+            goBackToCurrentQuestions(); // Go back to game question if returning from a game link
+            break;
+        }
+      }
+    }
+
+    function resetBackground() {
+      document.body.style.backgroundImage = "url('https://preview.redd.it/for-hire-i-make-pixel-art-backgrounds-twitch-overlays-and-v0-mnslf2y8hxab1.gif?width=1920&auto=webp&s=1a04a51f2f19a3ed0438df7225d41428170de17d')";
+    }
+
+    function openSettings() {
+      screenHistory.push(currentScreen);
+      currentScreen = 'settings';
+      document.getElementById('menu').classList.add('hidden');
+      const extraButtonsContainer = document.getElementById('extra-buttons');
+      extraButtonsContainer.classList.remove('hidden');
+      extraButtonsContainer.innerHTML = `
+        <div class="question-box">
+          <div class="question-container">
+            <p>Settings</p>
+          </div>
+        </div>
+        <div class="choices-container">
+          <button id="sound-button" class="choice-button" onclick="toggleSound()">Toggle Sound</button>
+          <button id="music-button" class="choice-button" onclick="toggleMusic()">Toggle Music</button>
+        </div>
+        <button class="game-button" onclick="goBack()">Back</button>
+      `;
+      document.getElementById('back-button').classList.remove('hidden');
+    }
+
+    function toggleSound() {
+      soundOn = !soundOn;
+      updateButtonColor('sound-button', soundOn);
+    }
+
+    function toggleMusic() {
+      musicOn = !musicOn;
+      updateButtonColor('music-button', musicOn);
+      toggleBackgroundMusic();
+    }
+
+    function updateButtonColor(buttonId, isOn) {
+      const button = document.getElementById(buttonId);
+      if (isOn) {
+        button.style.backgroundColor = 'yellow';
+      } else {
+        button.style.backgroundColor = 'red';
+      }
+    }
+
+    function handleSmallButtonClick(gameLink) {
+      if (currentScreen === 'question' || currentScreen === 'finish') {
+        openFullScreenGame(gameLink);
+      }
+    }
+
+    function openFullScreenGame(gameLink) {
+      const container = document.querySelector('.container');
+      container.innerHTML = `
+        <iframe src="${gameLink}" class="game-frame" style="width: 100vw; height: 100vh; border: none;"></iframe>
+        <button class="restore-button" onclick="restoreOriginalLayout()">Return to Question</button>
+      `;
+    }
+
+    function restoreOriginalLayout() {
+      // Restore original layout
+      const container = document.querySelector('.container');
+      container.innerHTML = `
+        <h1 class="title top-left" id="game-title">PhysXperience</h1>
+        <div id="extra-buttons" class="button-container"></div>
+        <div id="top-right-buttons" class="top-right-buttons"></div>
+        <button id="back-button" class="back-button" onclick="goBack()">Back</button>
+      `;
+
+      // Return to the current question, finish screen, or difficulty selection
+      if (currentScreen === 'question') {
+        showQuestion(currentQuestionIndex);
+      }
+      if (currentScreen === 'finish') {
+        finishTest();
+      }
+       if (currentScreen === 'con') {
+        loadPhysTest();
+      }
+
+      // Refresh the buttons
+      const topRightButtonsContainer = document.getElementById('top-right-buttons');
+      topRightButtonsContainer.classList.remove('hidden');
+      
+      const smallButtonNames = ['Golf Physics', 'Tow Truck Xperience'];
+      const smallButtonLinks = ['https://kaishin-prog.github.io/Golf-Physics/', 'https://kaishin-prog.github.io/Tow-Truck-X/'];
+      topRightButtonsContainer.innerHTML = '';
+      for (let i = 0; i < smallButtonNames.length; i++) {
+        const button = document.createElement('button');
+        button.className = 'small-button';
+        button.textContent = smallButtonNames[i];
+        topRightButtonsContainer.appendChild(button);
+        button.addEventListener('click', () => {
+          handleSmallButtonClick(smallButtonLinks[i]);
+        });
+      }
+    }
+
+    function toggleBackgroundMusic() {
+      if (!backgroundMusic) {
+        backgroundMusic = new Audio('Music 1.mp3');
+        backgroundMusic.loop = true;
+      }
+      if (musicOn) {
+        backgroundMusic.play();
+      } else {
+        backgroundMusic.pause();
+      }
+    }
+
+    function goBackToPreviousScreen() {
+      if (screenHistory.length > 0) {
+        const previousScreen = screenHistory.pop();
+        switch (previousScreen) {
+          case 'menu':
+            document.getElementById('menu').classList.remove('hidden');
+            break;
+          case 'loading':
+            document.getElementById('loading').classList.remove('hidden');
+            break;
+          case 'game-buttons':
+            document.getElementById('game-buttons').classList.remove('hidden');
+            break;
+          case 'extra-buttons':
+            document.getElementById('extra-buttons').classList.remove('hidden');
+            break;
+          case 'question':
+            showQuestion(currentQuestionIndex);
+            break;
+          case 'finish':
+            finishTest();
+            break;
+          case 'game-link':
+            document.getElementById('game-links-buttons').classList.remove('hidden');
+            break;
+        }
+        currentScreen = previousScreen;
+      }
+    }
+  </script>
+</body>
+</html>
